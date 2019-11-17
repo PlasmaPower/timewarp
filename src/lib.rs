@@ -22,7 +22,7 @@ lazy_static::lazy_static! {
                 Err(e) => eprintln!("Failed to parse TIME_OFFSET: {}", e),
             }
         }
-        if let Ok(s) = std::env::var("START_TIME") {
+        if let Ok(s) = std::env::var("TIME_START") {
             match s.parse::<time_t>() {
                 Ok(t) => return t - *FIRST_TIME,
                 Err(e) => eprintln!("Failed to parse START_TIME: {}", e),
