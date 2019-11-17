@@ -14,19 +14,25 @@ pub struct timeb {
 }
 
 lazy_static::lazy_static! {
-    static ref START_TIME: time_t = {
-        if let Ok(s) = std::env::var("START_TIME") {
+    static ref FIRST_TIME: time_t = unsafe { redhook::real!(time)(ptr::null_mut()) };
+    static ref TIME_OFFSET: time_t = {
+        if let Ok(s) = std::env::var("TIME_OFFSET") {
             match s.parse::<time_t>() {
                 Ok(t) => return t,
+                Err(e) => eprintln!("Failed to parse TIME_OFFSET: {}", e),
+            }
+        }
+        if let Ok(s) = std::env::var("START_TIME") {
+            match s.parse::<time_t>() {
+                Ok(t) => return t - *FIRST_TIME,
                 Err(e) => eprintln!("Failed to parse START_TIME: {}", e),
             }
         }
-        unsafe { redhook::real!(time)(ptr::null_mut()) }
+        0
     };
     static ref WARP_AMOUNT: f64 = {
         if let Ok(s) = std::env::var("TIME_WARP") {
             match s.parse::<f64>() {
-                Ok(x) if x.is_negative() => eprintln!("Cannot do negative TIME_WARP"),
                 Err(e) => eprintln!("Failed to parse TIME_WARP: {}", e),
                 Ok(x) => return x,
             }
@@ -36,8 +42,9 @@ lazy_static::lazy_static! {
 }
 
 fn warp_time(real: time_t) -> time_t {
-    let start_time = *START_TIME;
-    start_time + ((real - start_time) as f64 * *WARP_AMOUNT) as time_t
+    *FIRST_TIME
+        + ((real - *FIRST_TIME) as f64 * *WARP_AMOUNT) as time_t
+        + *TIME_OFFSET
 }
 
 redhook::hook! {
@@ -57,6 +64,18 @@ redhook::hook! {
         // Should always be the case, but in theory could error.
         if ret == 0 {
             (*ptr).time = warp_time((*ptr).time);
+        }
+        ret
+    }
+}
+
+redhook::hook! {
+    unsafe fn clock_gettime(clk_id: libc::clockid_t, timespec: *mut libc::timespec)
+        -> libc::c_int => hook_clock_gettime
+    {
+        let ret = redhook::real!(clock_gettime)(clk_id, timespec);
+        if ret == 0 && clk_id == libc::CLOCK_REALTIME {
+            (*timespec).tv_sec = warp_time((*timespec).tv_sec);
         }
         ret
     }
