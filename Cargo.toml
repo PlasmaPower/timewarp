@@ -1,0 +1,13 @@
+[package]
+name = "timewarp"
+version = "0.1.0"
+authors = ["Lee Bousfield <ljbousfield@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate_type = ["dylib"]
+
+[dependencies]
+redhook = "1.0.0"
+libc = "0.2.65"
+lazy_static = "1.4.0"
