@@ -80,3 +80,15 @@ redhook::hook! {
         ret
     }
 }
+
+redhook::hook! {
+    unsafe fn gettimeofday(tv: *mut libc::timeval, tz: *mut libc::timezone)
+        -> libc::c_int => hook_gettimeofday
+    {
+        let ret = redhook::real!(gettimeofday)(tv, tz);
+        if ret == 0 && !tv.is_null() {
+            (*tv).tv_sec = warp_time((*tv).tv_sec);
+        }
+        ret
+    }
+}
